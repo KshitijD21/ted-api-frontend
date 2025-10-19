@@ -39,6 +39,7 @@ export class AudioRecorder {
   private hasSpokenRecently: boolean = false;
   private speechStartTime: number = 0;
   private lastSpeechTime: number = 0;
+  private currentAudioLevel: number = 0; // Current RMS audio level for UI display
 
   // ✅ NEW: Buffer management for complete audio blob generation
   private audioBuffer: Float32Array[] = [];
@@ -96,6 +97,9 @@ export class AudioRecorder {
           rms += inputData[i] * inputData[i];
         }
         rms = Math.sqrt(rms / inputData.length);
+
+        // Store current audio level for UI (convert to integer for easier display)
+        this.currentAudioLevel = Math.floor(rms * 10000);
 
         const currentTime = Date.now();
         const isSpeaking = rms > this.silenceThreshold;
@@ -439,6 +443,14 @@ export class AudioRecorder {
 
   isRecording(): boolean {
     return this.processor !== null && this.audioContext?.state === 'running';
+  }
+
+  /**
+   * Get current audio level (RMS value scaled to integer)
+   * Useful for UI visualization
+   */
+  getCurrentAudioLevel(): number {
+    return this.currentAudioLevel;
   }
 }
 

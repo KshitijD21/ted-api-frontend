@@ -27,6 +27,8 @@ export class SpeechRecognitionService {
   /**
    * Transcribe audio buffer to text
    * Replaces Python's recognize_google()
+   *
+   * Note: Web Speech API uses the microphone directly, so we'll use a MediaStream approach
    */
   async transcribe(audioBlob: Blob): Promise<string> {
     if (!this.isSupported) {
@@ -34,28 +36,93 @@ export class SpeechRecognitionService {
     }
 
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+      let transcriptText = '';
+      let hasResult = false;
 
+      this.recognition.onresult = (event: any) => {
+        hasResult = true;
+        transcriptText = event.results[0][0].transcript;
+        console.log('📝 Transcribed:', transcriptText);
+      };
+
+      this.recognition.onerror = (event: any) => {
+        console.error('❌ Transcription error:', event.error);
+        if (!hasResult) {
+          reject(new Error(`Transcription failed: ${event.error}`));
+        }
+      };
+
+      this.recognition.onend = () => {
+        if (hasResult) {
+          resolve(transcriptText);
+        } else {
+          reject(new Error('No transcription result'));
+        }
+      };
+
+      // Create audio element and play it while recognizing
+      const reader = new FileReader();
       reader.onload = () => {
         const audio = new Audio(reader.result as string);
 
-        this.recognition.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          console.log('📝 Transcribed:', transcript);
-          resolve(transcript);
-        };
-
-        this.recognition.onerror = (event: any) => {
-          console.error('❌ Transcription error:', event.error);
-          reject(new Error(event.error));
-        };
-
+        // Start recognition
         this.recognition.start();
-        audio.play();
+
+        // Play the audio (Web Speech API will pick it up if system audio routing works)
+        // Note: This is a limitation of Web Speech API - it primarily works with live mic
+        audio.play().catch(err => {
+          console.warn('⚠️ Audio playback failed:', err);
+          // Still try to get result from recognition
+        });
+
+        // Set timeout in case recognition doesn't complete
+        setTimeout(() => {
+          if (!hasResult) {
+            this.recognition.stop();
+            reject(new Error('Transcription timeout'));
+          }
+        }, 10000); // 10 second timeout
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Failed to read audio blob'));
       };
 
       reader.readAsDataURL(audioBlob);
     });
+  }
+
+  /**
+   * Transcribe from live microphone stream
+   * This is the more reliable method for Web Speech API
+   */
+  async transcribeLive(onResult: (text: string, isFinal: boolean) => void): Promise<() => void> {
+    if (!this.isSupported) {
+      throw new Error('Speech recognition not supported');
+    }
+
+    this.recognition.continuous = true;
+    this.recognition.interimResults = true;
+
+    this.recognition.onresult = (event: any) => {
+      const result = event.results[event.results.length - 1];
+      const transcript = result[0].transcript;
+      const isFinal = result.isFinal;
+      onResult(transcript, isFinal);
+    };
+
+    this.recognition.onerror = (event: any) => {
+      console.error('❌ Live transcription error:', event.error);
+    };
+
+    this.recognition.start();
+
+    // Return stop function
+    return () => {
+      this.recognition.stop();
+      this.recognition.continuous = false;
+      this.recognition.interimResults = false;
+    };
   }
 
   /**
