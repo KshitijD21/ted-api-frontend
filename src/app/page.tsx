@@ -215,7 +215,7 @@ export default function Home() {
               </button>
             </Link>
 
-            <Link href="/voice-rag-final">
+            <Link href="/text-chat">
               <button className="group px-8 py-4 rounded-full bg-white/[0.02] backdrop-blur-xl border border-white/5 hover:border-pink-500/30 hover:bg-white/[0.04] transition-all duration-300 hover:translate-y-[-2px] hover:shadow-[0_0_30px_rgba(236,72,153,0.15)]">
                 <div className="flex items-center gap-3">
                   <MessageSquare className="w-5 h-5 text-pink-400" />
