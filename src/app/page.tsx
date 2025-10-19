@@ -1,189 +1,217 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { RepoManagementPanel } from "@/components/RepoManagementPanel";
-import { VoiceModeToggle } from "@/components/VoiceModeToggle";
-import { LiveTranscript } from "@/components/LiveTranscript";
-import { ChatTimeline } from "@/components/ChatTimeline";
-import { TextInputFallback } from "@/components/TextInputFallback";
-import { VoiceTest } from "@/components/VoiceTest";
 import { useRepositories } from "@/hooks/useRepositories";
 import { useVoiceMode } from "@/hooks/useVoiceMode";
 import { useChat } from "@/hooks/useChat";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
-import { Keyboard, Mic } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Github, Mic, MessageSquare, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function Home() {
-  const [showTextInput, setShowTextInput] = useState(false);
+  const [repoUrl, setRepoUrl] = useState("");
+  const { addRepository } = useRepositories();
 
-  const {
-    repositories,
-    activeRepo,
-    addRepository,
-    switchRepository,
-    removeRepository,
-  } = useRepositories();
-
-  const {
-    voiceState,
-    currentTranscript,
-    transcript,
-    startVoiceMode,
-    stopVoiceMode,
-    setThinking,
-    resetToListening,
-    sendTextForTTS,
-  } = useVoiceMode();
-
-  const { messages, isLoading: chatLoading, handleUserQuery } = useChat();
-
-  // Handle completed transcripts
-  useEffect(() => {
-    const lastTranscript = transcript[transcript.length - 1];
-    if (lastTranscript && lastTranscript.isFinal) {
-      // Set thinking state
-      setThinking();
-
-      // Send query to backend
-      handleUserQuery(lastTranscript.text).then((result) => {
-        if (result) {
-          // Send answer to TTS
-          sendTextForTTS(result.summary);
-        }
-        resetToListening();
-      });
-    }
-  }, [
-    transcript,
-    handleUserQuery,
-    setThinking,
-    resetToListening,
-    sendTextForTTS,
-  ]);
-
-  const handleVoiceToggle = async () => {
-    if (voiceState === "idle") {
-      const success = await startVoiceMode();
-      if (success) {
-        setShowTextInput(false);
-      }
-    } else {
-      stopVoiceMode();
-    }
-  };
-
-  const handleTextQuery = async (text: string) => {
-    const result = await handleUserQuery(text);
-    if (result && voiceState !== "idle") {
-      sendTextForTTS(result.summary);
+  const handleAddRepo = async () => {
+    if (repoUrl.trim()) {
+      await addRepository(repoUrl);
+      setRepoUrl("");
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Toaster for notifications */}
+    <div className="min-h-screen bg-black overflow-hidden relative">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-purple-950/20 to-black" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent" />
+
+      {/* Animated grain texture */}
+      <div className="absolute inset-0 opacity-[0.015] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=')]" />
+
       <Toaster position="top-right" />
 
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
+      {/* Floating Header */}
+      <motion.header
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-black/30"
+      >
+        <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Voice Code Assistant
-            </h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowTextInput(!showTextInput)}
-              aria-label="Toggle input mode"
-            >
-              {showTextInput ? (
-                <>
-                  <Mic className="h-4 w-4 mr-2" />
-                  Voice Mode
-                </>
-              ) : (
-                <>
-                  <Keyboard className="h-4 w-4 mr-2" />
-                  Type Instead
-                </>
-              )}
-            </Button>
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <Mic className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-lg font-light text-white tracking-tight">
+                CodeVoice
+              </span>
+            </div>
+
+            {/* Nav Links */}
+            <div className="flex items-center gap-8">
+              <Link
+                href="/voice-rag-final"
+                className="text-sm text-gray-400 hover:text-white transition-colors duration-300"
+              >
+                How it works
+              </Link>
+              <a
+                href="https://github.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-400 hover:text-white transition-colors duration-300 flex items-center gap-2"
+              >
+                <Github className="w-4 h-4" />
+                GitHub
+              </a>
+            </div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 space-y-8">
-        {/* Test Section */}
-        <section aria-label="API test">
-          <VoiceTest />
-        </section>
+      {/* Hero Section */}
+      <main className="relative z-10 min-h-screen flex items-center justify-center px-8">
+        <div className="max-w-5xl mx-auto w-full pt-32 pb-48">
+          {/* Headline */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-center mb-16"
+          >
+            <h1 className="text-[100px] font-extralight leading-none mb-6 tracking-tight">
+              <span className="text-white">Talk to Your </span>
+              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-500 bg-clip-text text-transparent">
+                Code
+              </span>
+            </h1>
+            <p className="text-xl text-gray-400 font-light">
+              AI voice conversations with your repositories
+            </p>
+          </motion.div>
 
-        {/* Repository Management */}
-        <section aria-label="Repository management">
-          <RepoManagementPanel
-            repositories={repositories}
-            activeRepo={activeRepo}
-            onAddRepo={addRepository}
-            onSwitchRepo={switchRepository}
-            onRemoveRepo={removeRepository}
-          />
-        </section>
+          {/* Hero Input - THE Main CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="mb-12"
+          >
+            <div className="relative group">
+              {/* Animated gradient border on focus */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 rounded-full opacity-0 group-hover:opacity-20 group-focus-within:opacity-40 blur-2xl transition-opacity duration-500 animate-gradient-shift" />
 
-        {/* Voice Control Section */}
-        <section
-          className="py-12 flex flex-col items-center justify-center space-y-8"
-          aria-label="Voice interaction"
-        >
-          {/* Voice Mode Toggle */}
-          <VoiceModeToggle
-            voiceState={voiceState}
-            onToggle={handleVoiceToggle}
-            disabled={chatLoading}
-          />
-
-          {/* Live Transcript */}
-          <LiveTranscript
-            text={currentTranscript}
-            isActive={voiceState !== "idle"}
-          />
-
-          {/* Text Input Fallback */}
-          <AnimatePresence>
-            {showTextInput && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="w-full"
-              >
-                <TextInputFallback
-                  onSubmit={handleTextQuery}
-                  isLoading={chatLoading}
-                  disabled={false}
-                  placeholder="Ask a question about your code..."
+              <div className="relative flex items-center gap-4 px-8 py-6 rounded-full bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 focus-within:border-purple-500/50 transition-all duration-500 group-hover:translate-y-[-4px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)]">
+                <Github className="w-6 h-6 text-gray-500 flex-shrink-0 group-focus-within:text-purple-400 transition-colors" />
+                <input
+                  type="text"
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddRepo()}
+                  placeholder="Paste your repository URL"
+                  className="flex-1 bg-transparent text-white text-lg placeholder:text-gray-500 focus:outline-none"
                 />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </section>
+                <motion.button
+                  onClick={handleAddRepo}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 flex items-center gap-2"
+                >
+                  Add
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
 
-        {/* Chat Timeline */}
-        <section
-          className="max-w-4xl mx-auto"
-          aria-label="Conversation history"
-        >
-          <ChatTimeline messages={messages} />
-        </section>
+          {/* Mode Selection Pills */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="flex items-center justify-center gap-6"
+          >
+            <Link href="/voice-rag-final">
+              <button className="group px-8 py-4 rounded-full bg-white/[0.02] backdrop-blur-xl border border-white/5 hover:border-purple-500/30 hover:bg-white/[0.04] transition-all duration-300 hover:translate-y-[-2px] hover:shadow-[0_0_30px_rgba(168,85,247,0.15)]">
+                <div className="flex items-center gap-3">
+                  <Mic className="w-5 h-5 text-purple-400" />
+                  <span className="text-gray-300 group-hover:text-white transition-colors">
+                    Start Voice Chat
+                  </span>
+                </div>
+              </button>
+            </Link>
+
+            <Link href="/voice-rag-final">
+              <button className="group px-8 py-4 rounded-full bg-white/[0.02] backdrop-blur-xl border border-white/5 hover:border-pink-500/30 hover:bg-white/[0.04] transition-all duration-300 hover:translate-y-[-2px] hover:shadow-[0_0_30px_rgba(236,72,153,0.15)]">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="w-5 h-5 text-pink-400" />
+                  <span className="text-gray-300 group-hover:text-white transition-colors">
+                    Try Text Mode
+                  </span>
+                </div>
+              </button>
+            </Link>
+          </motion.div>
+
+          {/* Trust Badges */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, delay: 0.8 }}
+            className="flex items-center justify-center gap-12 mt-32"
+          >
+            <div className="text-center">
+              <div className="text-xs text-gray-500 mb-1">Real-time Voice</div>
+              <div className="text-sm text-gray-400">Instant responses</div>
+            </div>
+            <div className="w-px h-8 bg-gray-800" />
+            <div className="text-center">
+              <div className="text-xs text-gray-500 mb-1">Secure RAG</div>
+              <div className="text-sm text-gray-400">Private & safe</div>
+            </div>
+            <div className="w-px h-8 bg-gray-800" />
+            <div className="text-center">
+              <div className="text-xs text-gray-500 mb-1">GitHub Native</div>
+              <div className="text-sm text-gray-400">Works with any repo</div>
+            </div>
+          </motion.div>
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t mt-16 py-6 bg-card/50">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Powered by Gemini Flash 2.5 Live API, Vectara RAG, and Next.js</p>
+      {/* Minimal Footer */}
+      <footer className="fixed bottom-0 left-0 right-0 z-10 py-8">
+        <div className="max-w-7xl mx-auto px-8">
+          <div className="flex items-center justify-center gap-8 text-sm text-gray-600">
+            <Link
+              href="/voice-rag-final"
+              className="hover:text-gray-400 transition-colors"
+            >
+              About
+            </Link>
+            <span className="text-gray-800">•</span>
+            <a href="#" className="hover:text-gray-400 transition-colors">
+              Privacy
+            </a>
+            <span className="text-gray-800">•</span>
+            <a href="#" className="hover:text-gray-400 transition-colors">
+              Docs
+            </a>
+            <span className="text-gray-800">•</span>
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gray-400 transition-colors"
+            >
+              GitHub
+            </a>
+          </div>
         </div>
       </footer>
     </div>
