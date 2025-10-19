@@ -8,7 +8,6 @@ Edit `.env` file and add your Vectara credentials:
 
 ```bash
 # Already configured
-NEXT_PUBLIC_GEMINI_API_KEY=AIzaSyDGJWbKSOiDdC7_UaPVxQKL4j9HUt7lcL8
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
 # 👉 Add your Vectara credentials here
