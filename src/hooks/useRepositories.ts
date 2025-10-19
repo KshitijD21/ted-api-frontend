@@ -1,15 +1,21 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import axios from 'axios';
 import { Repository } from '@/types';
+
+const API_BASE_URL = 'http://localhost:8200';
 
 export function useRepositories() {
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [activeRepo, setActiveRepo] = useState<Repository | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const addRepository = useCallback(async (url: string) => {
     setIsLoading(true);
+    setError(null);
+
     try {
       // Extract repo name from URL
       const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
@@ -29,21 +35,57 @@ export function useRepositories() {
         setActiveRepo(newRepo);
       }
 
-      // Simulate indexing (in real implementation, this would be an API call)
-      setTimeout(() => {
-        setRepositories(prev =>
-          prev.map(repo =>
-            repo.id === newRepo.id
-              ? { ...repo, status: 'active', lastIndexed: new Date() }
-              : repo
-          )
-        );
-      }, 2000);
+      // Call the backend API to fetch and process the repository
+      console.log('🚀 Calling /fetch-repo endpoint:', url);
+
+      const response = await axios.post(`${API_BASE_URL}/fetch-repo`, {
+        repo_url: url,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 120000, // 2 minute timeout for large repos
+      });
+
+      console.log('✅ Repository fetch response:', response.data);
+
+      // Update repository status to active after successful fetch
+      setRepositories(prev =>
+        prev.map(repo =>
+          repo.id === newRepo.id
+            ? {
+                ...repo,
+                status: 'active',
+                lastIndexed: new Date(),
+                totalFiles: response.data.total_files,
+                owner: response.data.owner,
+                repoName: response.data.repo,
+              }
+            : repo
+        )
+      );
 
       return newRepo;
     } catch (error) {
-      console.error('Failed to add repository:', error);
-      throw error;
+      console.error('❌ Failed to add repository:', error);
+
+      // Update repo status to error
+      setRepositories(prev =>
+        prev.map(repo =>
+          repo.id === Date.now().toString()
+            ? { ...repo, status: 'error' }
+            : repo
+        )
+      );
+
+      if (axios.isAxiosError(error)) {
+        const errorMsg = error.response?.data?.detail || error.message || 'Failed to fetch repository';
+        setError(errorMsg);
+        throw new Error(errorMsg);
+      } else {
+        setError('An unexpected error occurred');
+        throw error;
+      }
     } finally {
       setIsLoading(false);
     }
@@ -67,6 +109,7 @@ export function useRepositories() {
     repositories,
     activeRepo,
     isLoading,
+    error,
     addRepository,
     switchRepository,
     removeRepository,

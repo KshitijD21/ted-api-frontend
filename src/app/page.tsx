@@ -6,20 +6,48 @@ import { useVoiceMode } from "@/hooks/useVoiceMode";
 import { useChat } from "@/hooks/useChat";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
-import { Github, Mic, MessageSquare, ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
+import {
+  Github,
+  Mic,
+  MessageSquare,
+  ArrowRight,
+  AlertCircle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { VideoStatusCard } from "@/components/VideoStatusCard";
+import { toast } from "sonner";
 
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState("");
-  const { addRepository } = useRepositories();
+  const [submittedRepoUrl, setSubmittedRepoUrl] = useState<string | null>(null);
+  const [showVideoStatus, setShowVideoStatus] = useState(false);
+  const { addRepository, isLoading, error } = useRepositories();
 
   const handleAddRepo = async () => {
     if (repoUrl.trim()) {
-      await addRepository(repoUrl);
-      setRepoUrl("");
+      try {
+        toast.loading("Processing repository...", { id: "repo-fetch" });
+        await addRepository(repoUrl);
+        setSubmittedRepoUrl(repoUrl);
+        setShowVideoStatus(true);
+        setRepoUrl("");
+        toast.success("Repository added successfully!", { id: "repo-fetch" });
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to add repository",
+          { id: "repo-fetch" }
+        );
+      }
     }
   };
+
+  // Show error toast when error occurs
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   return (
     <div className="min-h-screen bg-black overflow-hidden relative">
@@ -118,16 +146,56 @@ export default function Home() {
                 />
                 <motion.button
                   onClick={handleAddRepo}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 flex items-center gap-2"
+                  disabled={isLoading}
+                  whileHover={{ scale: isLoading ? 1 : 1.05 }}
+                  whileTap={{ scale: isLoading ? 1 : 0.95 }}
+                  className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Add
-                  <ArrowRight className="w-4 h-4" />
+                  {isLoading ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{
+                          duration: 1,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </motion.div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Add
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </motion.button>
               </div>
             </div>
           </motion.div>
+
+          {/* Video Status Section */}
+          <AnimatePresence>
+            {showVideoStatus && submittedRepoUrl && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -30 }}
+                transition={{ duration: 0.5 }}
+                className="mb-12"
+              >
+                <VideoStatusCard
+                  repoUrl={submittedRepoUrl}
+                  onVideoReady={(url) => {
+                    console.log("Video ready:", url);
+                    toast.success("🎥 Your code overview video is ready!");
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Mode Selection Pills */}
           <motion.div

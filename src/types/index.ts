@@ -22,6 +22,9 @@ export interface Repository {
   url: string;
   status: 'active' | 'inactive' | 'indexing' | 'error';
   lastIndexed?: Date;
+  totalFiles?: number;
+  owner?: string;
+  repoName?: string;
 }
 
 export interface SearchRequest {
