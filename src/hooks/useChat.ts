@@ -4,10 +4,18 @@ import { useState, useCallback } from 'react';
 import { Message, SearchRequest, SearchResponse } from '@/types';
 import { API_ENDPOINTS } from '@/lib/constants';
 import { toast } from 'sonner';
+import { useVectaraRAG } from './useVectaraRAG';
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // ✅ NEW: Add Vectara RAG integration
+  const { enhanceQueryWithRAG } = useVectaraRAG({
+    enabled: true,
+    numResults: 3,
+    maxResponseWords: 100
+  });
 
   const addMessage = useCallback((role: 'user' | 'assistant', content: string) => {
     const newMessage: Message = {
@@ -73,8 +81,28 @@ export function useChat() {
       const userMessageId = addMessage('user', query);
       updateMessage(userMessageId, { isComplete: true });
 
-      // Search for answer
-      const result = await searchQuery(query);
+      // ✅ NEW: Enhance query with Vectara RAG before sending to backend
+      console.log('🚀 [useChat] Processing query:', query);
+
+      const enhanced = await enhanceQueryWithRAG(query);
+
+      if (enhanced.hasContext) {
+        console.log('✨ [useChat] Query enhanced with Vectara context');
+        console.log(`📚 [useChat] Retrieved ${enhanced.retrievedDocs.length} documents`);
+
+        // Show toast to indicate RAG is being used
+        toast.success(`Using ${enhanced.retrievedDocs.length} knowledge base documents`, {
+          description: 'Enhanced with relevant context'
+        });
+      } else {
+        console.log('ℹ️ [useChat] No Vectara context found, using original query');
+      }
+
+      // Search for answer - use enhanced prompt if available
+      const queryToSend = enhanced.enhancedPrompt;
+      console.log('📤 [useChat] Sending to backend:', queryToSend.substring(0, 100) + '...');
+
+      const result = await searchQuery(queryToSend);
 
       if (result) {
         // Add assistant message with sources
@@ -89,7 +117,7 @@ export function useChat() {
 
       return null;
     },
-    [addMessage, updateMessage, searchQuery]
+    [addMessage, updateMessage, searchQuery, enhanceQueryWithRAG]
   );
 
   const clearMessages = useCallback(() => {

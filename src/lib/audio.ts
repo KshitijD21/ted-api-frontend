@@ -33,12 +33,17 @@ export class AudioRecorder {
 
   // Silence detection properties optimized for natural human speech
   private silenceThreshold: number = 0.005; // Lower threshold for more sensitive detection
-  private silenceTimeout: number = 3000; // 3 seconds - allows for natural pauses and thinking
-  private minSpeechDuration: number = 500; // Must speak for at least 0.5s before considering silence
+  private silenceTimeout: number = 1500; // 1.5 seconds - Python style shorter timeout
+  private minSpeechDuration: number = 2000; // Must speak for at least 2s (Python style)
   private silenceTimer: NodeJS.Timeout | null = null;
   private hasSpokenRecently: boolean = false;
   private speechStartTime: number = 0;
   private lastSpeechTime: number = 0;
+
+  // ✅ NEW: Buffer management for complete audio blob generation
+  private audioBuffer: Float32Array[] = [];
+  private totalBufferedSamples: number = 0;
+  private bufferSizeTarget: number = 32000; // 2 seconds at 16kHz
 
   async requestPermission(): Promise<boolean> {
     try {
@@ -167,6 +172,19 @@ export class AudioRecorder {
 
         // Normalize audio to prevent clipping
         const normalizedData = this.normalizeAudio(resampledData);
+
+        // ✅ CHANGE: Store audio in buffer for later blob generation
+        this.audioBuffer.push(normalizedData);
+        this.totalBufferedSamples += normalizedData.length;
+
+        // Log buffer status
+        if (this.chunkCounter % 50 === 0) {
+          console.log('📊 BUFFER STATUS:', {
+            samples: this.totalBufferedSamples,
+            duration: (this.totalBufferedSamples / 16000).toFixed(2) + 's',
+            minRequired: '2.0s'
+          });
+        }
 
         // Convert Float32 to Int16 PCM
         const int16Data = new Int16Array(normalizedData.length);
@@ -311,6 +329,74 @@ export class AudioRecorder {
     return btoa(binary);
   }
 
+  /**
+   * ✅ NEW: Get complete audio as Blob for transcription
+   */
+  getAudioBlob(): Blob {
+    if (this.audioBuffer.length === 0) {
+      return new Blob([], { type: 'audio/wav' });
+    }
+
+    // Combine all buffered audio
+    const combinedData = new Float32Array(this.totalBufferedSamples);
+    let offset = 0;
+    for (const chunk of this.audioBuffer) {
+      combinedData.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    console.log('🎤 Creating audio blob from', this.totalBufferedSamples, 'samples');
+    console.log('   Duration:', (this.totalBufferedSamples / 16000).toFixed(2), 'seconds');
+
+    // Convert to Int16 PCM
+    const int16Data = new Int16Array(combinedData.length);
+    for (let i = 0; i < combinedData.length; i++) {
+      const s = Math.max(-1, Math.min(1, combinedData[i]));
+      int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+
+    // Create WAV file (needed for Web Speech API)
+    const wavBuffer = this.createWavFile(int16Data, 16000);
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+  }
+
+  /**
+   * Create WAV file header
+   */
+  private createWavFile(samples: Int16Array, sampleRate: number): ArrayBuffer {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    // WAV header
+    this.writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    this.writeString(view, 8, 'WAVE');
+    this.writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM format
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true); // Byte rate
+    view.setUint16(32, 2, true); // Block align
+    view.setUint16(34, 16, true); // Bits per sample
+    this.writeString(view, 36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+
+    // Write samples
+    const offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      view.setInt16(offset + i * 2, samples[i], true);
+    }
+
+    return buffer;
+  }
+
+  private writeString(view: DataView, offset: number, string: string): void {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
   stop(): void {
     // Clear silence timer
     if (this.silenceTimer) {
@@ -345,6 +431,10 @@ export class AudioRecorder {
     this.hasSpokenRecently = false;
     this.speechStartTime = 0;
     this.lastSpeechTime = 0;
+
+    // ✅ NEW: Clear audio buffer
+    this.audioBuffer = [];
+    this.totalBufferedSamples = 0;
   }
 
   isRecording(): boolean {

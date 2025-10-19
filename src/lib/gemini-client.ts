@@ -96,12 +96,12 @@ export class GeminiLiveClient {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handleMessage(message: any): void {
     try {
-      console.log('🔵 RAW MESSAGE RECEIVED:', JSON.stringify(message, null, 2));
+      // console.log('🔵 RAW MESSAGE RECEIVED:', JSON.stringify(message, null, 2));
 
       // Handle server content as per official API documentation
       if (message.serverContent) {
         const content = message.serverContent;
-        console.log('📦 SERVER CONTENT:', JSON.stringify(content, null, 2));
+        // console.log('📦 SERVER CONTENT:', JSON.stringify(content, null, 2));
 
         // Handle INPUT transcription (user's speech being transcribed)
         if (content.inputTranscription) {
@@ -213,6 +213,34 @@ export class GeminiLiveClient {
         }],
         turnComplete: true
       });
+    } catch (error) {
+      console.error('Error sending text:', error);
+      this.callbacks.onError(error as Error);
+    }
+  }
+
+  /**
+   * ✅ NEW: Send text input (Python-style naming)
+   * This matches Python's session.send(input=text, end_of_turn=True)
+   */
+  async sendTextInput(text: string): Promise<void> {
+    if (!this.isConnected || !this.session) {
+      throw new Error('Not connected to Gemini');
+    }
+
+    try {
+      console.log('📤 Sending text to Gemini:', text.substring(0, 100) + '...');
+
+      // Send text with turnComplete flag (like Python's end_of_turn)
+      this.session.sendClientContent({
+        turns: [{
+          role: 'user',
+          parts: [{ text }]
+        }],
+        turnComplete: true
+      });
+
+      console.log('✅ Text sent with turnComplete=true');
     } catch (error) {
       console.error('Error sending text:', error);
       this.callbacks.onError(error as Error);
