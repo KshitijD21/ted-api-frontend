@@ -26,6 +26,7 @@ export class AudioRecorder {
   private stream: MediaStream | null = null;
   private processor: ScriptProcessorNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
+  private silentSink: GainNode | null = null;
   private onDataCallback: ((base64Data: string) => void) | null = null;
   private onSilenceCallback: (() => void) | null = null;
   private chunkCounter: number = 0;
@@ -181,7 +182,11 @@ export class AudioRecorder {
     };
 
     this.source.connect(this.processor);
-    this.processor.connect(this.audioContext.destination);
+    // Use a zero-gain sink to keep the node graph alive without audible feedback
+    this.silentSink = this.audioContext.createGain();
+    this.silentSink.gain.value = 0;
+    this.processor.connect(this.silentSink);
+    this.silentSink.connect(this.audioContext.destination);
   }
 
   private resampleTo16kHz(inputData: Float32Array, sourceSampleRate: number): Float32Array {
@@ -314,13 +319,18 @@ export class AudioRecorder {
     }
 
     if (this.processor) {
-      this.processor.disconnect();
+      try { this.processor.disconnect(); } catch {}
       this.processor = null;
     }
 
     if (this.source) {
-      this.source.disconnect();
+      try { this.source.disconnect(); } catch {}
       this.source = null;
+    }
+
+    if (this.silentSink) {
+      try { this.silentSink.disconnect(); } catch {}
+      this.silentSink = null;
     }
 
     if (this.stream) {
@@ -348,12 +358,19 @@ export class AudioRecorder {
  */
 export class AudioPlayer {
   private audioContext: AudioContext | null = null;
-  private sourceNode: AudioBufferSourceNode | null = null;
+  // We schedule many short sources back-to-back; keep track of all to stop/cleanup
+  private playingNodes: AudioBufferSourceNode[] = [];
   private isPlaying = false;
   private onEndedCallback: (() => void) | null = null;
 
   // Playback rate for human-friendly speech (1.0 = normal, 0.8 = slower, 1.2 = faster)
   private playbackRate: number = 0.9; // Slightly slower for better comprehension
+
+  // Queueing state to ensure gapless playback
+  // Next absolute time (AudioContext time) at which to start the next chunk
+  private nextStartTime = 0;
+  // Lead-in buffer to absorb jitter before starting playback
+  private jitterBufferSeconds = 0.2;
 
   /**
    * Play base64-encoded 24kHz Int16 PCM audio from Gemini
@@ -366,14 +383,14 @@ export class AudioPlayer {
     if (!this.audioContext) {
       this.audioContext = getSharedAudioContext();
     }
-
-    if (this.sourceNode) {
-      this.sourceNode.stop();
-      this.sourceNode = null;
+    // Ensure context is running (autoplay policies may suspend it)
+    if (this.audioContext.state === 'suspended') {
+      try { await this.audioContext.resume(); } catch {}
     }
 
     try {
-      console.log('🎵 PLAYBACK START');
+      // Decode and prepare buffer for scheduling
+      console.log('🎵 PLAYBACK CHUNK');
       console.log('   - Input base64 length:', base64Audio.length);
 
       // Decode base64 to binary
@@ -434,27 +451,43 @@ export class AudioPlayer {
       console.log('   - Buffer created: ', audioBuffer.length, 'samples at', audioBuffer.sampleRate, 'Hz');
       console.log('   - Buffer duration:', audioBuffer.duration.toFixed(3), 'seconds');
 
-      // Create and play source with human-friendly playback rate
-      this.sourceNode = this.audioContext.createBufferSource();
-      this.sourceNode.buffer = audioBuffer;
+      // Prepare a new source and schedule it in the queue (do NOT stop previous sources)
+      const src = this.audioContext.createBufferSource();
+      src.buffer = audioBuffer;
+      src.playbackRate.setValueAtTime(this.playbackRate, this.audioContext.currentTime);
+      src.connect(this.audioContext.destination);
 
-      // Set playback rate for more natural speech speed
-      this.sourceNode.playbackRate.setValueAtTime(this.playbackRate, this.audioContext.currentTime);
+      const now = this.audioContext.currentTime;
+      // Initialize the queue start time if needed, with a small jitter buffer
+      if (this.nextStartTime < now + 0.005) {
+        this.nextStartTime = now + this.jitterBufferSeconds;
+      }
 
-      this.sourceNode.connect(this.audioContext.destination);
+      const scheduledStart = this.nextStartTime;
+      const scheduledChunkDuration = audioBuffer.duration / this.playbackRate;
+      this.nextStartTime += scheduledChunkDuration;
 
-      this.isPlaying = true;
-      this.sourceNode.onended = () => {
-        const actualDuration = audioBuffer.duration / this.playbackRate;
-        console.log('🎵 PLAYBACK ENDED');
-        console.log('   - Played at rate:', this.playbackRate, '(', actualDuration.toFixed(3), 's actual duration)');
-        this.isPlaying = false;
-        this.onEndedCallback?.();
-        this.onEndedCallback = null;
+      // Keep track of active nodes for proper cleanup
+      this.playingNodes.push(src);
+      src.onended = () => {
+        // Remove from active list
+        this.playingNodes = this.playingNodes.filter(n => n !== src);
+        // If nothing remains, mark not playing and notify
+        if (this.playingNodes.length === 0) {
+          this.isPlaying = false;
+          const actualDuration = audioBuffer.duration / this.playbackRate;
+          console.log('🎵 QUEUE DRAINED, last chunk duration:', actualDuration.toFixed(3), 's');
+          this.onEndedCallback?.();
+          this.onEndedCallback = null;
+        }
       };
 
-      this.sourceNode.start(0);
-      console.log('🎵 PLAYBACK STARTED at', this.playbackRate + 'x speed for natural hearing');
+      // Schedule start for seamless playback
+      src.start(scheduledStart);
+      this.isPlaying = true;
+      console.log(
+        `🎵 Queued ${scheduledChunkDuration.toFixed(3)}s @ ${scheduledStart.toFixed(3)}s (ctx now ${now.toFixed(3)}s, rate ${this.playbackRate}x)`
+      );
     } catch (error) {
       console.error('❌ Error playing audio:', error);
       this.isPlaying = false;
@@ -656,14 +689,18 @@ export class AudioPlayer {
   }
 
   stop(): void {
-    if (this.sourceNode) {
-      try {
-        this.sourceNode.stop();
-      } catch {
-        // Ignore errors if already stopped
+    // Stop all scheduled/playing nodes
+    if (this.playingNodes.length) {
+      for (const node of this.playingNodes) {
+        try {
+          node.stop();
+        } catch {
+          // ignore
+        }
       }
-      this.sourceNode = null;
     }
+    this.playingNodes = [];
+    this.nextStartTime = 0;
     this.isPlaying = false;
     this.onEndedCallback = null;
   }
