@@ -46,9 +46,9 @@ export function ChatInput({
   };
 
   return (
-    <div className="sticky bottom-0 left-0 right-0 bg-background border-t border-border">
+    <div className="sticky bottom-0 left-0 right-0 bg-black/30 backdrop-blur-xl border-t border-white/5">
       <div className="max-w-4xl mx-auto px-10 py-5">
-        <div className="relative flex items-end gap-3 bg-input rounded-lg p-3 border border-border focus-within:border-primary transition-colors">
+        <div className="relative flex items-end gap-3 bg-white/[0.03] backdrop-blur-xl rounded-2xl p-4 border border-white/10 focus-within:border-purple-500/50 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
           {/* Textarea */}
           <textarea
             ref={textareaRef}
@@ -58,7 +58,7 @@ export function ChatInput({
             placeholder={placeholder}
             disabled={isLoading}
             rows={1}
-            className="flex-1 bg-transparent text-foreground placeholder-muted-foreground resize-none outline-none text-base leading-6 max-h-[120px] disabled:opacity-50"
+            className="flex-1 bg-transparent text-white placeholder-gray-500 resize-none outline-none text-base leading-6 max-h-[120px] disabled:opacity-50"
             style={{ minHeight: "24px" }}
           />
 
@@ -66,7 +66,7 @@ export function ChatInput({
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed rounded-full transition-colors"
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none rounded-full transition-all duration-300"
             title={isLoading ? "Sending..." : "Send message"}
           >
             <Send className="w-4 h-4 text-white" />

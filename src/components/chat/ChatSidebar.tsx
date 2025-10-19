@@ -25,13 +25,13 @@ export function ChatSidebar({
   const groupedConversations = groupConversationsByDate(conversations);
 
   return (
-    <aside className="h-screen bg-sidebar border-r border-border flex flex-col w-[260px]">
+    <aside className="h-screen bg-black/30 backdrop-blur-xl border-r border-white/5 flex flex-col w-[260px]">
       {/* Header */}
       <div className="p-5">
-        <h2 className="text-sm font-medium text-foreground mb-3">History</h2>
+        <h2 className="text-sm font-medium text-white mb-3">History</h2>
         <button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-white/[0.04] rounded-lg transition-colors border border-white/5 hover:border-white/10"
         >
           <Plus className="w-4 h-4" />
           New Chat
@@ -43,7 +43,7 @@ export function ChatSidebar({
         {Object.entries(groupedConversations).map(([dateGroup, convos]) => (
           <div key={dateGroup}>
             {/* Date Group Header */}
-            <h3 className="text-xs font-medium text-muted-foreground mb-2">
+            <h3 className="text-xs font-medium text-gray-500 mb-2">
               {dateGroup}
             </h3>
 
@@ -54,16 +54,16 @@ export function ChatSidebar({
                   <button
                     onClick={() => onSelectConversation(conversation.id)}
                     className={`
-                      w-full text-left px-3 py-2 rounded-lg text-sm transition-colors
+                      w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-200
                       ${
                         activeConversationId === conversation.id
-                          ? "bg-primary/10 text-primary border-l-2 border-primary"
-                          : "text-foreground hover:bg-secondary"
+                          ? "bg-purple-500/20 text-white border border-purple-500/30"
+                          : "text-gray-300 hover:bg-white/[0.04] border border-transparent hover:border-white/10"
                       }
                     `}
                   >
                     <p className="truncate">{conversation.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-gray-500 mt-0.5">
                       {new Date(conversation.updated_at).toLocaleTimeString(
                         [],
                         {
@@ -81,20 +81,20 @@ export function ChatSidebar({
                         menuOpen === conversation.id ? null : conversation.id
                       )
                     }
-                    className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-muted rounded transition-opacity"
+                    className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-white/[0.08] rounded transition-opacity"
                   >
-                    <MoreVertical className="w-3 h-3 text-muted-foreground" />
+                    <MoreVertical className="w-3 h-3 text-gray-400" />
                   </button>
 
                   {/* Delete Menu */}
                   {menuOpen === conversation.id && (
-                    <div className="absolute right-2 top-10 bg-white border border-border rounded-lg shadow-elevated z-10 overflow-hidden min-w-[120px]">
+                    <div className="absolute right-2 top-10 bg-black/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.5)] z-10 overflow-hidden min-w-[120px]">
                       <button
                         onClick={() => {
                           onDeleteConversation(conversation.id);
                           setMenuOpen(null);
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-red-50 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                       >
                         <Trash2 className="w-3 h-3" />
                         Delete
@@ -109,9 +109,7 @@ export function ChatSidebar({
 
         {conversations.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-sm text-muted-foreground">
-              No conversations yet
-            </p>
+            <p className="text-sm text-gray-500">No conversations yet</p>
           </div>
         )}
       </div>

@@ -177,24 +177,30 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-black overflow-hidden relative">
+      {/* Background Effects - matching landing page */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-purple-950/20 to-black" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent" />
+      <div className="absolute inset-0 opacity-[0.015] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=')]" />
+
       {/* Sidebar */}
-      <ChatSidebar
-        conversations={store.conversations}
-        activeConversationId={store.activeConversationId}
-        onSelectConversation={handleSelectConversation}
-        onNewChat={handleNewChat}
-        onDeleteConversation={handleDeleteConversation}
-      />
+      <div className="relative z-10">
+        <ChatSidebar
+          conversations={store.conversations}
+          activeConversationId={store.activeConversationId}
+          onSelectConversation={handleSelectConversation}
+          onNewChat={handleNewChat}
+          onDeleteConversation={handleDeleteConversation}
+        />
+      </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative z-10">
         {/* Simple Header */}
-        <header className="border-b border-border bg-background">
+        <header className="border-b border-white/5 bg-black/30 backdrop-blur-xl">
           <div className="px-10 py-4 flex items-center">
-            <span className="text-base font-medium text-foreground">
-              CodeVoice
-            </span>
+            <span className="text-base font-medium text-white">CodeVoice</span>
           </div>
         </header>
 
@@ -244,7 +250,7 @@ export default function ChatPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="mx-10 my-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                <div className="mx-10 my-3 p-4 bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-lg text-red-400 text-sm">
                   <p className="font-medium">Error</p>
                   <p>{error}</p>
                 </div>
@@ -257,22 +263,25 @@ export default function ChatPage() {
             <div className="flex items-center justify-center h-full px-10">
               <div className="text-center max-w-2xl">
                 {/* Heading */}
-                <h1 className="text-3xl font-normal text-foreground mb-3">
-                  Welcome to CodeVoice
+                <h1 className="text-5xl font-extralight text-white mb-3 tracking-tight">
+                  Welcome to{" "}
+                  <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-500 bg-clip-text text-transparent">
+                    CodeVoice
+                  </span>
                 </h1>
 
                 {/* Subtitle */}
-                <p className="text-base text-muted-foreground mb-8">
+                <p className="text-lg text-gray-400 font-light mb-8">
                   Ask questions about your codebase
                 </p>
 
-                {/* Suggestion Chips - Optional, minimal */}
-                <div className="flex flex-wrap gap-2 justify-center mb-6">
+                {/* Suggestion Chips - Glassmorphic style */}
+                <div className="flex flex-wrap gap-3 justify-center mb-6">
                   <button
                     onClick={() =>
                       handleSendMessage("Explain the search functionality")
                     }
-                    className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
+                    className="px-6 py-3 text-sm text-gray-300 bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-full hover:border-purple-500/30 hover:bg-white/[0.04] transition-all duration-300"
                   >
                     Explain search functionality
                   </button>
@@ -280,7 +289,7 @@ export default function ChatPage() {
                     onClick={() =>
                       handleSendMessage("Show authentication code")
                     }
-                    className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
+                    className="px-6 py-3 text-sm text-gray-300 bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-full hover:border-purple-500/30 hover:bg-white/[0.04] transition-all duration-300"
                   >
                     Show authentication code
                   </button>
@@ -288,7 +297,7 @@ export default function ChatPage() {
                     onClick={() =>
                       handleSendMessage("Describe project structure")
                     }
-                    className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
+                    className="px-6 py-3 text-sm text-gray-300 bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-full hover:border-purple-500/30 hover:bg-white/[0.04] transition-all duration-300"
                   >
                     Describe project structure
                   </button>
